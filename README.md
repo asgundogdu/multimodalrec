@@ -9,7 +9,7 @@ MultimodalRec is a Python movie recommendation system that allows you to solve c
 
 MultimodalRec takes two sources of data: `video_trailers` and `user_viewership_history`. By learning users' audio-visual feature preferences along with their rating history, the modal predicts the likelihood of users to watch a brand new movie trailer. This can be used for marketing purposes...
 
-For detail info and its usage, please see the [encyclopedia.](https://github.com/asgundogdu/multimodalrec/encyclopedia)
+For detail info and its usage, please see the [cyclopedia.](https://github.com/asgundogdu/multimodalrec)
 
 
 
