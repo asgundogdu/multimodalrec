@@ -1,7 +1,7 @@
 # MultimodalRec
 Deep Multi-Modal Movie Trailer Recommendation System built in Python
 
-## What does MultimodalRec do
+## What does MultimodalRec do?
 
 MultimodalRec is a Python movie recommendation system that allows you to solve cold start problem for predicting users behaviour on brand new movies.  
 
