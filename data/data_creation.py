@@ -7,7 +7,7 @@ import os.path
 def _read_movielens_old(directory):
     ratings_df = pd.read_csv(directory, sep='::', header=None, engine='python')
     ratings_df.columns = ['User','Movie','Rating','Timestamp']
-    movies_df = pd.read_csv('ml-1m/movies.dat', sep='::', header=None, engine='python')
+    movies_df = pd.read_csv(directory.replace('ratings.dat','movies.dat'), sep='::', header=None, engine='python')
     movies_df.columns = ['MovieID','MovieName','MovieGenre']
     return (ratings_df, movies_df)
 
