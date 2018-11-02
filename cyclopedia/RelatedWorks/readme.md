@@ -4,8 +4,8 @@
 | ------------- | -------------------------- | ------------- |
 | Image         | Visual Features            | [5,6]  |
 | Audio         | Audio Features, Music      | [2,3,4,15]  |
-| Video         | Video, Activity Detection  | [1,8,9,10,16]  |
-| Viewership    | Node2vec, Latent Features  | [14]  |
+| Video         | Video, Activity Detection  | [1,8,9,10,16,17]  |
+| Viewership    | Node2vec, Latent Features  | [14,17]  |
 | Other         | Cold Start Problem, RS     | [7,11,12,13]  |
 
 1.  [Fine-grained Video Attractiveness Prediction Using Multimodal Deep Learning on a Large Real-world Dataset.](https://arxiv.org/pdf/1804.01373.pdf)
@@ -24,6 +24,7 @@
 14. [node2vec: Scalable Feature Learning for Networks](https://cs.stanford.edu/~jure/pubs/node2vec-kdd16.pdf)
 15. [AENet: Learning Deep Audio Features for Video Analysis](https://arxiv.org/pdf/1701.00599.pdf) [github](https://github.com/znaoya/aenet)
 16. [CONVOLUTIONAL COLLABORATIVE FILTER NETWORK FOR VIDEO BASED RECOMMENDATION SYSTEMS](https://arxiv.org/pdf/1810.08189.pdf)
+17. [Analysis System for Theatrical Movie Releases Based on Movie Trailer Deep Video Representation](https://arxiv.org/pdf/1807.04465.pdf)
 
 
 [Deep Learning based Recommender System: A Survey and New Perspectives](https://arxiv.org/pdf/1707.07435.pdf)
