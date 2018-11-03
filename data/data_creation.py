@@ -5,6 +5,7 @@ import os.path
 
 
 def _read_movielens_old(directory):
+    # directory = os.path.dirname(os.path.realpath("__file__")) + '/' + directory
     ratings_df = pd.read_csv(directory, sep='::', header=None, engine='python')
     ratings_df.columns = ['User','Movie','Rating','Timestamp']
     movies_df = pd.read_csv(directory.replace('ratings.dat','movies.dat'), sep='::', header=None, engine='python')
@@ -78,9 +79,10 @@ def _preprocess_dataframe_10M(ratings_df, movies_df, all_movies, min_positive_sc
     return (training_ratings_df, test_ratings_df)
 
 
-def get_movielens_1M(directory='ml-1m/ratings.dat', all_movies_dir = 'all_movies.txt',min_positive_score=4.):
-    if os.path.exists('MovieLens1M.pickle'):
-        with open('pickles/MovieLens1M.pickle', 'rb') as handle:
+def get_movielens_1M(directory='ml-1m/ratings.dat', all_movies_dir = 'all_movies.txt', pickles_dir='pickles/', min_positive_score=4.):
+    # print(os.path.dirname(os.path.realpath("__file__")))
+    if os.path.exists(pickles_dir+'MovieLens1M.pickle'):
+        with open(pickles_dir+'MovieLens1M.pickle', 'rb') as handle:
             data = pickle.load(handle)
 
     else:
@@ -88,18 +90,18 @@ def get_movielens_1M(directory='ml-1m/ratings.dat', all_movies_dir = 'all_movies
         (training_ratings_df, test_ratings_df) = _preprocess_dataframe_1M(ratings, movies, all_movies_dir, min_positive_score)
 
         data = {'training':training_ratings_df,
-                'test': test_ratings_df,
+                'test': test_ratings_df[['User', 'Movie', 'Rating', 'Timestamp']],
                 'Titles': movies}
-        with open('pickles/MovieLens1M.pickle', 'wb') as handle:
+        with open(pickles_dir+'MovieLens1M.pickle', 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
     return data
 
 
 
-def get_movielens_10M(directory='ml-10m/ratings.dat', all_movies_dir = 'all_movies.txt',min_positive_score=4.):
-    if os.path.exists('MovieLens10M.pickle'):
-        with open('pickles/MovieLens10M.pickle', 'rb') as handle:
+def get_movielens_10M(directory='ml-10m/ratings.dat', all_movies_dir = 'all_movies.txt', pickles_dir='pickles/', min_positive_score=4.):
+    if os.path.exists(pickles_dir+'MovieLens10M.pickle'):
+        with open(pickles_dir+'MovieLens10M.pickle', 'rb') as handle:
             data = pickle.load(handle)
 
     else:
@@ -107,9 +109,35 @@ def get_movielens_10M(directory='ml-10m/ratings.dat', all_movies_dir = 'all_movi
         (training_ratings_df, test_ratings_df) = _preprocess_dataframe_10M(ratings, movies, all_movies_dir, min_positive_score)
 
         data = {'training':training_ratings_df,
-                'test': test_ratings_df,
+                'test': test_ratings_df[['User', 'Movie', 'Rating', 'Timestamp']],
                 'Titles': movies}
-        with open('pickles/MovieLens10M.pickle', 'wb') as handle:
+        with open(pickles_dir+'MovieLens1M.pickle', 'wb') as handle:
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
+
+    return data
+
+
+def _read_movielens_new(directory):
+    ratings_df = pd.read_csv(directory, sep=',', header=None)
+    ratings_df.columns = ['User','Movie','Rating','Timestamp']
+    movies_df = pd.read_csv(directory.replace('ratings.csv','movies.csv'), sep=',', header=None)
+    movies_df.columns = ['MovieID','MovieName','MovieGenre']
+    return (ratings_df, movies_df)
+
+
+def get_movielens_20M(directory='ml-20m/ratings.dat', all_movies_dir = 'all_movies.txt', pickles_dir='pickles/', min_positive_score=4.):
+    if os.path.exists(pickles_dir+'MovieLens20M.pickle'):
+        with open(pickles_dir+'MovieLens20M.pickle', 'rb') as handle:
+            data = pickle.load(handle)
+
+    else:
+        (ratings, movies) = _read_movielens_new(directory)
+        (training_ratings_df, test_ratings_df) = _preprocess_dataframe_10M(ratings, movies, all_movies_dir, min_positive_score)
+
+        data = {'training':training_ratings_df,
+                'test': test_ratings_df[['User', 'Movie', 'Rating', 'Timestamp']],
+                'Titles': movies}
+        with open(pickles_dir+'MovieLens20M.pickle', 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
     return data
