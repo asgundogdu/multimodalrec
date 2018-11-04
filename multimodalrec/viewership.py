@@ -5,11 +5,17 @@ from collections import Counter
 import networkx as nx
 from networkx.algorithms import bipartite
 from scipy.sparse.csgraph import minimum_spanning_tree as mst_nsim
+from scipy.sparse.linalg import svds
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath("__file__"))))
 
 from node2vec import Node2Vec
 
 # from .data import data_creation as create
+
+def _svd_compute(Ratings_demeaned, k):
+	U, sigma, Vt = svds(Ratings_demeaned, k)
+	return (U, sigma, Vt)
+
 
 def _compute_Node2Vec(G, dimensions=64, walk_length=30, num_walks=200, workers=6):
 		node_vects = Node2Vec(G, dimensions=64, walk_length=32, num_walks=200, workers=8)
@@ -21,30 +27,30 @@ def _compute_Node2Vec(G, dimensions=64, walk_length=30, num_walks=200, workers=6
 		#node_vectors_dict = {'vector':vectors,'node_index':node_indices}
 		representations = {}
 		for index, vector in zip(model.wv.index2word,model.wv.vectors.tolist()):
-		    representations[i] = vector
+		    representations[index] = vector
 
 		return representations
 
 
-def _trim_graph(network, type, value=64):
+def _trim_graph(network, trim_type, value=64):
 	# Getting Adjacency Matrix of the Network
 	A_ij = nx.adjacency_matrix(network)
 	A_ij = A_ij.todense()
 	# print(np.count_nonzero(A_movies >= 1))
-	if trim_type:
-		A_ij_trimed = knn_mst(A_movies, k=value)
+	if trim_type==1:
+		A_ij_trimed = _knn_mst(A_ij, k=value)
 	# print(np.count_nonzero(A_trimed >= 1))
-	else:
+	elif trim_type==0:
 		A_ij_trimed = A_ij
 		A_ij_trimed[A_ij_trimed < value] = 0
-		print("Number of remaining edge in trimmed graph: {}".format(np.count_nonzero(A_trimed >= 1)))
+		print("Number of remaining edge in trimmed graph: {}".format(np.count_nonzero(A_ij_trimed >= 1)))
 
 	G_movies_trimmed = nx.from_numpy_matrix(A_ij_trimed)
 
 	return G_movies_trimmed
 
 
-def _knn_mst(D, k=13):
+def _knn_mst(D, k=13): # BUG WORKS WITH DISTANCE MATRIX (+++++++++++++++++)
     n = D.shape[0]
     assert (D.shape[0] == D.shape[1])
 
@@ -83,7 +89,7 @@ def _mst_sym(A, return_LongestLinks=True):
 
 class BipartiteNetwork(object):
 	"""
-	BipartiteNetwork
+	Bipartite Network Node2Vec Encoding
 	
 	Bipartite_data: (pandas dataframe)
 	trim_type: (int) 0 for threshold 1 for knn_mst
@@ -148,6 +154,48 @@ class BipartiteNetwork(object):
 		trimmed_movie_graph = _trim_graph(self.G_movies, self.trim_type, self.trim_value_movie)
 		self.Movie_representations = _compute_Node2Vec(trimmed_movie_graph)
 		return self.Movie_representations
+
+
+class CollaborativeFiltering(object):
+	"""
+	Collaborative Filtering Encoding
+	
+	CF_data: (pandas dataframe)
+
+	"""
+	def __init__(self, CF_data): 
+		super(CollaborativeFiltering, self).__init__()
+		self.CF_data = CF_data
+		self.Ratings = self.CF_data.pivot(index = 'User', columns ='Movie', values = 'Rating').fillna(0)
+		self.R = self.Ratings.values
+		self.user_ratings_mean = np.mean(self.R, axis = 1)
+		self.Ratings_demeaned = self.R - self.user_ratings_mean.reshape(-1, 1)
+		self.n_users = self.CF_data.User.unique().shape[0]
+		self.n_movies = self.CF_data.Movie.unique().shape[0]
+		self.sparsity = round(1.0 - len(self.CF_data) / float(self.n_users * self.n_movies), 3)
+		self.algorithm = None
+		self.User_representations = None
+		self.Movie_representations = None
+		self.sigma = None
+
+		print('The sparsity level of training dataset is ' +  str(self.sparsity * 100) + '%')
+
+
+	def compute_latent_factors(self, algorithm='SVD', k=64):
+		(U, sigma, Vt) = (None, None, None)
+		self.algorithm = algorithm
+		if algorithm == 'SVD':
+			(U, sigma, Vt) = _svd_compute(self.Ratings_demeaned, k)
+			self.User_representations = U
+			self.Movie_representations = Vt.T
+			self.sigma = np.diag(sigma)
+		return self.User_representations, self.Movie_representations, self.sigma
+
+
+
+
+
+
 
 
 
