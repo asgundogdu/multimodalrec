@@ -69,7 +69,7 @@ def extract_features(_dir_=''):
             features = model.extract(image)
             sequence.append(features)
 
-        np.save(trailer+'.seq', sequences)
+        np.save(trailer_dir.rsplit('/')[-1]+'.seq', sequences)
         pbar.update(1)
     pbar.close()
 
