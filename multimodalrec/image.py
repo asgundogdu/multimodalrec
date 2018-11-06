@@ -72,7 +72,7 @@ def extract_features(_dir_=''):
             np.save('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
             pbar.update(1)
         else:
-            print('Update')
+            # print('Update')
             pbar.update(1)
     pbar.close()
 
