@@ -25,7 +25,7 @@ def _preprocess_dataframe_1M(ratings_df, movies_df, all_movies, min_positive_sco
     # Filter Ratings that has no corresponding trailer in database
     ratings_df = ratings_df[ratings_df.Movie.isin(filtered_movies)]
     print(ratings_df.shape)
-    # Filter Ratings that has higher than min_positive_score (default is 3.0)
+    # Filter Ratings that has higher than min_positive_score (default is 4.0)
     ratings_df = ratings_df[ratings_df.Rating>=min_positive_score]
     print(ratings_df.shape)
 
@@ -35,11 +35,15 @@ def _preprocess_dataframe_1M(ratings_df, movies_df, all_movies, min_positive_sco
         lambda x: x[1])
     downloads_df['movieID'] = downloads_df[3].apply(lambda x: int(x.rsplit('_',1)[1].split('.')[0]))
     downloads_df = downloads_df.dropna()
+    
     test_ratings_df = pd.merge(ratings_df, downloads_df[['movieID','year']], how='left', left_on='Movie', right_on='movieID').dropna()
+    
     assert len(test_ratings_df.year.unique()) == 1
+    
     training_ratings_df = ratings_df.merge(test_ratings_df[['User','Movie','Rating','Timestamp']], 
                                            indicator=True, how='outer')
     training_ratings_df = training_ratings_df[training_ratings_df['_merge'] == 'left_only'][['User','Movie','Rating','Timestamp']]
+    
     assert (test_ratings_df.shape[0]+training_ratings_df.shape[0] == ratings_df.shape[0]) # Check split is valid
 
     return (training_ratings_df, test_ratings_df)
