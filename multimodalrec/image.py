@@ -59,17 +59,17 @@ def extract_features(_dir_=''):
     pbar = tqdm(total=len(all_data))
     for trailer_dir in all_data:
         # Get the path to the frames for this trailer
-        trailer_dir
+        if not os.path.isfile('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq'):
 
-        # Loop through and extract features to build the sequence.
-        frames = [trailer_dir+'/'+f for f in os.listdir(trailer_dir) if bool(re.search("[0-9].jpg", f))]
-        # print(frames)
-        sequence = []
-        for image in frames:
-            features = model.extract(image)
-            sequence.append(features)
+            # Loop through and extract features to build the sequence.
+            frames = [trailer_dir+'/'+f for f in os.listdir(trailer_dir) if bool(re.search("[0-9].jpg", f))]
+            # print(frames)
+            sequence = []
+            for image in frames:
+                features = model.extract(image)
+                sequence.append(features)
 
-        np.save('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
+            np.save('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
         pbar.update(1)
     pbar.close()
 
