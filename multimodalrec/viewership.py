@@ -186,9 +186,16 @@ class CollaborativeFiltering(object):
 		self.algorithm = algorithm
 		if algorithm == 'SVD':
 			(U, sigma, Vt) = _svd_compute(self.Ratings_demeaned, k)
+
+			U = {int(u):factor for u,factor in zip(self.Ratings.index, U)}
+			Vt = {int(m):factor for m,factor in zip(self.Ratings.columns, Vt.T)}
+
 			self.User_representations = U
-			self.Movie_representations = Vt.T
+			self.Movie_representations = Vt
 			self.sigma = np.diag(sigma)
+
+
+
 		return self.User_representations, self.Movie_representations, self.sigma
 
 
