@@ -3,6 +3,7 @@ import os, pickle, sys
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+from tqdm import tqdm
 
 # In-built packages
 from .trailer import AudioVisualEncoder
@@ -50,7 +51,7 @@ def create_train_val_test(ratings_df_training, user_latent_traninig, movie_facto
 
 def normalize_concat_inputs(user_latent, visual_features, data):
     X,y = [],[]
-    for index, row in data.iterrows(): 
+    for enum(index, row) in tqdm(data.iterrows()): 
         fusion_input = np.array(user_latent[row['User']]) / np.linalg.norm(np.array(user_latent[row['User']]))
         
         vis_frames = visual_features[row['Movie']]
@@ -61,8 +62,8 @@ def normalize_concat_inputs(user_latent, visual_features, data):
         lstm_input = np.array(lstm_input)
         X.append((lstm_input, fusion_input))
         y.append(row['Likes'])
-        if enum%50000==0: print(enum)
-        elif enum==0: print(enum)
+        # if enum%50000==0: print(enum)
+        # elif enum==0: print(enum)
     return X,y
 
 
