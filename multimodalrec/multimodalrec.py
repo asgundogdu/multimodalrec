@@ -51,7 +51,7 @@ def create_train_val_test(ratings_df_training, user_latent_traninig, movie_facto
 
 def normalize_concat_inputs(user_latent, visual_features, data):
     X,y = [],[]
-    for enum(index, row) in tqdm(data.iterrows()): 
+    for index, row in tqdm(data.iterrows()): 
         fusion_input = np.array(user_latent[row['User']]) / np.linalg.norm(np.array(user_latent[row['User']]))
         
         vis_frames = visual_features[row['Movie']]
