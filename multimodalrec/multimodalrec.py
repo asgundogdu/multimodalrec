@@ -99,7 +99,7 @@ def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
 
 
     for batch in range(eopch_num):
-        X_train_lstm, X_train_fusion y_train = data_pipeline(training_df, user_latent_traninig, visual_features, batch_size_)    
+        X_train_lstm, X_train_fusion, y_train = data_pipeline(training_df, user_latent_traninig, visual_features, batch_size_)    
         batch_lstm_xs = X_train_lstm[batch * batch_size_: (batch + 1) * batch_size_]
         batch_train_xs = X_train_fusion[batch * batch_size_: (batch + 1) * batch_size_]
         batch_ys = train_y[batch * batch_size_: (batch + 1) * batch_size_]
