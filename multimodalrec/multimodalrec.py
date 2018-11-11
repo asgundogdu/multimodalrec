@@ -28,7 +28,7 @@ def data_pipeline(training_df, user_latent_traninig,
 
 def normalize_concat_inputs(user_latent, visual_features, data):
     X_lstm_input,X_fusion_input,y = [],[],[]
-    for index, row in tqdm(data.iterrows()): 
+    for index, row in data.iterrows(): 
         fusion_input = np.array(user_latent[row['User']]) / np.linalg.norm(np.array(user_latent[row['User']]))
         
         vis_frames = visual_features[row['Movie']]
