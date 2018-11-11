@@ -21,9 +21,9 @@ def data_pipeline(training_df, user_latent_traninig,
     train = training_df.sample(n=batch_size)#(frac=0.1,random_state=200)
     # val = training_df.drop(train.index)
 
-    X_train,y_train = normalize_concat_inputs(user_latent_traninig, visual_features, train)
+    X_train_lstm, X_train_fusion, y_train = normalize_concat_inputs(user_latent_traninig, visual_features, train)
 
-    return X_train, y_train#, X_val, y_val#, X_test, y_test
+    return X_train_lstm, X_train_fusion, y_train#, X_val, y_val#, X_test, y_test
 
 
 def normalize_concat_inputs(user_latent, visual_features, data):
@@ -41,7 +41,7 @@ def normalize_concat_inputs(user_latent, visual_features, data):
         y.append(row['Likes'])
         # if enum%50000==0: print(enum)
         # elif enum==0: print(enum)
-    return X,y
+    return X_lstm_input, X_fusion_input, y
 
 
 def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
@@ -99,8 +99,7 @@ def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
 
 
     for batch in range(eopch_num):
-        X_train_lstm, X_train_fusion y_train = data_pipeline(training_df, user_latent_traninig, 
-                                                              visual_features, batch_size_)    
+        X_train_lstm, X_train_fusion y_train = data_pipeline(training_df, user_latent_traninig, visual_features, batch_size_)    
         batch_lstm_xs = X_train_lstm[batch * batch_size_: (batch + 1) * batch_size_]
         batch_train_xs = X_train_fusion[batch * batch_size_: (batch + 1) * batch_size_]
         batch_ys = train_y[batch * batch_size_: (batch + 1) * batch_size_]
