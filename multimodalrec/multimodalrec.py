@@ -37,6 +37,10 @@ def normalize_concat_inputs(user_latent, visual_features, data):
             normed_frame_features = frame / np.linalg.norm(frame)
             lstm_input.append(normed_frame_features)
         lstm_input = np.array(lstm_input)
+
+        if lstm_input.shape[0] != 30:
+            continue
+
         X_lstm_input.append(lstm_input)
         X_fusion_input.append(fusion_input)
         y.append(row['Likes'])
