@@ -27,7 +27,7 @@ def data_pipeline(training_df, user_latent_traninig,
 
 
 def normalize_concat_inputs(user_latent, visual_features, data):
-    X,y = [],[]
+    X_lstm_input,X_fusion_input,y = [],[],[]
     for index, row in tqdm(data.iterrows()): 
         fusion_input = np.array(user_latent[row['User']]) / np.linalg.norm(np.array(user_latent[row['User']]))
         
@@ -37,7 +37,8 @@ def normalize_concat_inputs(user_latent, visual_features, data):
             normed_frame_features = frame / np.linalg.norm(frame)
             lstm_input.append(normed_frame_features)
         lstm_input = np.array(lstm_input)
-        X.append((lstm_input, fusion_input))
+        X_lstm_input.append(lstm_input)
+        X_fusion_input.append(fusion_input)
         y.append(row['Likes'])
         # if enum%50000==0: print(enum)
         # elif enum==0: print(enum)
