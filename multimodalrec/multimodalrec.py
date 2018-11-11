@@ -126,9 +126,10 @@ def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
             )
             i = j
 
-    
+        msg = "Epoch {} - Training Batch Loss: {:.4f}"
+        print(msg.format((epoch+1), batch_loss))
 
-    
+    sess.close()
 
 
 
