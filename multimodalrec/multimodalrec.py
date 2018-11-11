@@ -8,45 +8,22 @@ from tqdm import tqdm
 # In-built packages
 from .trailer import AudioVisualEncoder
 from .viewership import BipartiteNetwork, CollaborativeFiltering
+from .lossTypes import RMSELossGraph
 # from .basicGraph import BasicGraph
 sys.path.append("/Users/salihgundogdu/Desktop/gits/multimodalrec/data/")
 from data import data_creation as dc
 
 
-def create_train_val_test(ratings_df_training, user_latent_traninig, movie_factors_training,visual_features):
+def data_pipeline(training_df, user_latent_traninig, 
+                          visual_features, batch_size):
                                #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output):
-    # TRAIN
-    # Create X_train y_train (POSITIVE)
-    pos_ratings_df = ratings_df_training[ratings_df_training.Rating>4]
-    pos_ratings_df = pos_ratings_df.assign(Likes= lambda x: 1)
-
-    # Create X_train y_train (NEGATIVE)
-    neg_ratings_df = ratings_df_training[ratings_df_training.Rating<3]
-    neg_ratings_df = neg_ratings_df.assign(Likes= lambda x: 0)
-
-    training_df = pd.concat([pos_ratings_df,neg_ratings_df],axis=0)
-    training_df = training_df.drop(['Timestamp','Rating'], axis=1)
-
-    train = training_df.sample(frac=0.8,random_state=200)
-    val = training_df.drop(train.index)
-
-    # TEST
-    # Create X_train y_train (POSITIVE)
-    #pos_ratings_df = ratings_df_test[ratings_df_test.Rating>4]
-    #pos_ratings_df = pos_ratings_df.assign(Likes= lambda x: 1)
-
-    # Create X_train y_train (NEGATIVE)
-    #neg_ratings_df = ratings_df_test[ratings_df_test.Rating<3]
-    #neg_ratings_df = neg_ratings_df.assign(Likes= lambda x: 0)
-
-    #test = pd.concat([pos_ratings_df,neg_ratings_df],axis=0, sort=False)
-    #test = test.drop(['Timestamp','Rating'], axis=1)
+    
+    train = training_df.sample(n=batch_size)#(frac=0.1,random_state=200)
+    # val = training_df.drop(train.index)
 
     X_train,y_train = normalize_concat_inputs(user_latent_traninig, visual_features, train)
-    X_val,y_val = normalize_concat_inputs(user_latent_traninig, visual_features, val)
-    #X_test,y_test = normalize_concat_inputs(user_latent_test, visual_features, test)
 
-    return X_train, y_train, X_val, y_val#, X_test, y_test
+    return X_train, y_train#, X_val, y_val#, X_test, y_test
 
 
 def normalize_concat_inputs(user_latent, visual_features, data):
@@ -69,28 +46,89 @@ def normalize_concat_inputs(user_latent, visual_features, data):
 
 def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
            ratings_df_test, user_latent_test, movie_factors_test, visual_features, output): # Inputs are dictionary
-    X_train, y_train, X_val, y_val, X_test, y_test = create_train_val_test(ratings_df_training, user_latent_traninig, movie_factors_training,
-                                                                               ratings_df_test, user_latent_test, movie_factors_test, visual_features, output)
 
-    # training_input = Input(batch_size=batch_size, num_steps=35, data=train_data)
-    #m = Model(training_input, is_training=True, hidden_size=2048, vocab_size=vocabulary, num_layers=num_layers)
-    x, y, y_pred = model()
+    # TRAIN
+    # Create X_train y_train (POSITIVE)
+    pos_ratings_df = ratings_df_training[ratings_df_training.Rating>4]
+    pos_ratings_df = pos_ratings_df.assign(Likes= lambda x: 1)
 
+    # Create X_train y_train (NEGATIVE)
+    neg_ratings_df = ratings_df_training[ratings_df_training.Rating<3]
+    neg_ratings_df = neg_ratings_df.assign(Likes= lambda x: -1)
+
+    training_df = pd.concat([pos_ratings_df,neg_ratings_df],axis=0)
+    training_df = training_df.drop(['Timestamp','Rating'], axis=1)
+
+    
     # Parametes
     batch_size_ = 64
     eopch_num = 100
     save_dir = "./model/trial1/"
     learning_rate = 0.01
+       #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output)
+
+    # training_input = Input(batch_size=batch_size, num_steps=35, data=train_data)
+    #m = Model(training_input, is_training=True, hidden_size=2048, vocab_size=vocabulary, num_layers=num_layers)
+    x_lstm, x_fusion, y, y_pred = model()
 
     # Loss function and optimizer
     # loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=output, labels=y))
     # optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate,
     #                                    beta1=0.9, beta2=0.999,
     #                                    epsilon=1e-08).minimize(loss)
-    # Mean squared error
-    cost = tf.reduce_sum(tf.pow(y_pred-Y, 2))/(2*batch_size_)
+    # Root mean squared error
+    cost = RMSELossGraph.connect_loss_graph(y_pred, y)
     # Gradient descent
     optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
+
+
+    # For Saving the Model
+    merged = tf.summary.merge_all()
+    saver = tf.train.Saver()
+    sess = tf.Session()
+    train_writer = tf.summary.FileWriter(save_dir, sess.graph)
+    
+    try:
+        print("\nTrying to restore last checkpoint ...")
+        last_chk_path = tf.train.latest_checkpoint(checkpoint_dir=save_dir)
+        saver.restore(sess, save_path=last_chk_path)
+        print("Restored checkpoint from:", last_chk_path)
+    except ValueError:
+        print("\nFailed to restore checkpoint. Initializing variables instead.")
+        sess.run(tf.global_variables_initializer())
+
+
+    for batch in range(eopch_num):
+        X_train_lstm, X_train_fusion y_train = data_pipeline(training_df, user_latent_traninig, 
+                                                              visual_features, batch_size_)    
+        batch_lstm_xs = X_train_lstm[batch * batch_size_: (batch + 1) * batch_size_]
+        batch_train_xs = X_train_fusion[batch * batch_size_: (batch + 1) * batch_size_]
+        batch_ys = train_y[batch * batch_size_: (batch + 1) * batch_size_]
+
+        start_time = time()
+        i_global, _, batch_loss, batch_acc = sess.run(
+            [optimizer, cost],
+            feed_dict={x_lstm: batch_lstm_xs,
+                       x_fusion: batch_train_xs,
+                       y: batch_ys})
+
+
+        # Compute Training Accuracy
+        i = 0
+        predicted_class = np.zeros(shape=len(train_x), dtype=np.int)
+        while i < len(train_x):
+            j = min(i + batch_size_, len(train_x))
+            batch_xs = train_x[i:j, :]
+            batch_ys = train_y[i:j, :]
+            predicted_class[i:j] = sess.run(
+                y_pred_cls,
+                feed_dict={x: batch_xs, y: batch_ys, learning_rate: lr(epoch)}
+            )
+            i = j
+
+    
+
+    
 
 
 
