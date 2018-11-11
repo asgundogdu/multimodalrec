@@ -18,7 +18,7 @@ def data_pipeline(training_df, user_latent_traninig,
                           visual_features, batch_size):
                                #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output):
     
-    train = training_df.sample(n=batch_size)#(frac=0.1,random_state=200)
+    train = training_df.sample(n=batch_size+100)#(frac=0.1,random_state=200)
     # val = training_df.drop(train.index)
 
     X_train_lstm, X_train_fusion, y_train = normalize_concat_inputs(user_latent_traninig, visual_features, train)
@@ -46,7 +46,8 @@ def normalize_concat_inputs(user_latent, visual_features, data):
         y.append(row['Likes'])
         # if enum%50000==0: print(enum)
         # elif enum==0: print(enum)
-    return X_lstm_input, X_fusion_input, y
+        if len(y) == 64:
+            return X_lstm_input, X_fusion_input, y
 
 
 def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
