@@ -29,7 +29,7 @@ class RMSELossGraph(AbstractLossFunction):
         return tf.sqrt(tf.reduce_mean(tf.square(interactions - predictions)))
 
 
-class RMSEDenseLossGraph(AbstractLossGraph):
+class RMSEDenseLossGraph(AbstractLossFunction):
     """
     This loss function returns the root mean square error between the predictions and the true interactions, including
     all non-interacted values as 0s.
