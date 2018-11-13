@@ -15,19 +15,27 @@ from data import data_creation as dc
 
 
 def data_pipeline(training_df, user_latent_traninig, 
-                          visual_features, batch_size):
+                          visual_features, batch_size, ith_batch, epoch_num=None, random=False, validation=False):
                                #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output):
     
-    train = training_df.sample(n=batch_size+100)#(frac=0.1,random_state=200)
+    if random:
+        train = training_df.sample(n=batch_size+150, random_state=ith_batch+(epoch_num+10))#(frac=0.1,random_state=200)
+    elif validation:
+        train = training_df.sample(n=3000+500, random_state=1324)
+        batch_size = 3000
+        #print(train.shape)
+    else:
+        train = training_df.iloc[ith_batch * batch_size: ((ith_batch + 1) * batch_size)+100]#
     # val = training_df.drop(train.index)
+    
 
-    X_train_lstm, X_train_fusion, y_train = normalize_concat_inputs(user_latent_traninig, visual_features, train)
+    X_train_lstm, X_train_fusion, y_train, indices = normalize_concat_inputs(user_latent_traninig, visual_features, train, batch_size)
 
-    return X_train_lstm, X_train_fusion, y_train#, X_val, y_val#, X_test, y_test
+    return X_train_lstm, X_train_fusion, y_train, indices#, X_val, y_val#, X_test, y_test
 
 
-def normalize_concat_inputs(user_latent, visual_features, data):
-    X_lstm_input,X_fusion_input,y = [],[],[]
+def normalize_concat_inputs(user_latent, visual_features, data, batch_size):
+    X_lstm_input,X_fusion_input,y, indices = [],[],[],[]
     for index, row in data.iterrows(): 
         fusion_input = np.array(user_latent[row['User']]) / np.linalg.norm(np.array(user_latent[row['User']]))
         
@@ -43,11 +51,15 @@ def normalize_concat_inputs(user_latent, visual_features, data):
 
         X_lstm_input.append(lstm_input)
         X_fusion_input.append(fusion_input)
-        y.append(row['Likes'])
+        y.append(row['Rating'])
+        indices.append(index)
         # if enum%50000==0: print(enum)
         # elif enum==0: print(enum)
-        if len(y) == 64:
-            return X_lstm_input, X_fusion_input, y
+        if len(y) == batch_size:
+            return X_lstm_input, X_fusion_input, y, indices
+        # else:
+        #     print("error")
+    # print(len(y))
 
 
 def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
@@ -193,7 +205,7 @@ class MultimodalRec(object):
         # Get Latent Factors Training
         print('Training User-Movie Latent Factors are extracting...')
         self.user_item_network_training = CollaborativeFiltering(data['training']) # 0 Threshold trim
-        user_latent_traninig, movie_latent_traninig, sigma = self.user_item_network_training.compute_latent_factors(algorithm='SVD', k=256)
+        user_latent_traninig, movie_latent_traninig, sigma = self.user_item_network_training.compute_latent_factors(algorithm='SVD', k=50)
         self.user_latent_traninig = user_latent_traninig
         self.movie_latent_traninig = movie_latent_traninig
         print('Done.')
