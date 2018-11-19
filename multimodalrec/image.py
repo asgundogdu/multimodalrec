@@ -93,9 +93,9 @@ def extract_features(_dir_='',load=False, model_name='mobilenet'):
     all_data = train_dir+test_dir
 
     if model_name=='mobilenet':
-        model = ExtractorMobile(load=load, model_name=model_name)
+        model = ExtractorMobile(load=load)
     else:
-        model = Extractor(load=load, model_name=model_name)
+        model = Extractor(load=load)
 
     pbar = tqdm(total=len(all_data))
     all_sequences = {}
