@@ -57,13 +57,11 @@ class ExtractorMobile():
 
         if weights is None and not load:
             # Get model with pretrained weights.
-            base_model = mobilenet.MobileNet(weights='imagenet')
-
+            #base_model = mobilenet.MobileNet(weights='imagenet')
+            base_model = MobileNet(include_top=False, weights='imagenet', input_tensor=Input(shape=(224,224,3)), input_shape=(224,224,3))
+            model = Model(input=base_model.input, output=base_model.get_layer('custom').output)
             # We'll extract features at the final pool layer.
-            self.model = Model(
-                inputs=base_model.input,
-                outputs=base_model.get_layer('custom').output
-            )
+            self.model = model
 
     def extract(self, image_path):
         img = image.load_img(image_path, target_size=(224, 224))
