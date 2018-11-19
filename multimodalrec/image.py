@@ -1,7 +1,6 @@
 import os.path, re
 from keras.applications.inception_v3 import InceptionV3
 from keras.applications import mobilenet
-
 from keras.preprocessing import image
 from keras.applications.inception_v3 import preprocess_input
 from keras.models import Model, load_model
@@ -53,7 +52,7 @@ class ExtractorMobile():
     def __init__(self, weights=None, load=False):
         """Either load pretrained from imagenet, or load our saved
         weights from own training."""
-
+        from keras.applications.mobilenet import MobileNet, preprocess_input
         self.weights = weights  # so we can check elsewhere which model
 
         if weights is None and not load:
@@ -63,7 +62,7 @@ class ExtractorMobile():
             # We'll extract features at the final pool layer.
             self.model = Model(
                 inputs=base_model.input,
-                outputs=base_model.get_layer('avg_pool').output
+                outputs=base_model.get_layer('custom').output
             )
 
     def extract(self, image_path):
