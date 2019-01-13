@@ -192,7 +192,7 @@ class MultimodalRec(object):
 
         # ADD Tensorflow Graph Naming
 
-    def organize_multimodal_data(self, load=False, dataset=1, trailer_directory='data/'):
+    def organize_multimodal_data(self, load=False, dataset=1, trailer_directory='data/', sequence_dir='data/'):
 
         if dataset==1:
             directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-1m/ratings.dat'
@@ -230,7 +230,7 @@ class MultimodalRec(object):
         # Get Representations of Trailer Frames
         print('Visual Representations are extracting...')
         self.video_processor = AudioVisualEncoder()
-        sequences = self.video_processor.extract_visual_features(_dir_=trailer_directory,load=load)
+        sequences = self.video_processor.extract_visual_features(_dir_=trailer_directory,load=load, seq_dir=sequence_dir)
         self.visual_features = sequences
         print('Done.')
 
