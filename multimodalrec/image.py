@@ -59,7 +59,7 @@ class ExtractorMobile():
             # Get model with pretrained weights.
             #base_model = mobilenet.MobileNet(weights='imagenet')
             base_model = MobileNet(include_top=False, weights='imagenet', input_tensor=Input(shape=(224,224,3)), input_shape=(224,224,3))
-            model = Model(input=base_model.input, output=base_model.get_layer('custom').output)
+            model = Model(inputs=base_model.input, outputs=base_model.get_layer('conv_pw_13_relu').output)
             # We'll extract features at the final pool layer.
             self.model = model
 
@@ -84,10 +84,10 @@ class ExtractorMobile():
 
 def extract_features(_dir_='',load=False, model_name='mobilenet'):
     seq_lenght = 30
-    train_dir = [_dir_+'train/'+f for f in os.listdir(_dir_+'train/') if f.find('.')==-1]
-    test_dir = [_dir_+'test/'+f for f in os.listdir(_dir_+'test/') if f.find('.')==-1]
+    #train_dir = [_dir_+'train/'+f for f in os.listdir(_dir_+'train/') if f.find('.')==-1]
+    #test_dir = [_dir_+'test/'+f for f in os.listdir(_dir_+'test/') if f.find('.')==-1]
     # print(test_dir)
-    all_data = train_dir+test_dir
+    all_data = [_dir_+f for f in os.listdir(_dir_) if f.find('.')==-1]#train_dir+test_dir
 
     if model_name=='mobilenet':
         model = ExtractorMobile(load=load)

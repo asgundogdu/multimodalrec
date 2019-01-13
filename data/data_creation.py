@@ -73,7 +73,7 @@ def _preprocess_dataframe_10M(ratings_df, movies_df, all_movies, min_positive_sc
     downloads_df['movieID'] = downloads_df[3].apply(lambda x: int(x.rsplit('_',1)[1].split('.')[0]))
     downloads_df = downloads_df.dropna()
     test_ratings_df = pd.merge(ratings_df, downloads_df[['movieID','year']], how='left', left_on='Movie', right_on='movieID').dropna()
-    assert len(test_ratings_df.year.unique()) == 2
+    assert len(test_ratings_df.year.unique()) == 3
     training_ratings_df = ratings_df.merge(test_ratings_df[['User','Movie','Rating','Timestamp']], 
                                            indicator=True, how='outer')
     training_ratings_df = training_ratings_df[training_ratings_df['_merge'] == 'left_only'][['User','Movie','Rating','Timestamp']]
@@ -115,7 +115,7 @@ def get_movielens_10M(directory='ml-10m/ratings.dat', all_movies_dir = 'all_movi
         data = {'training':training_ratings_df,
                 'test': test_ratings_df[['User', 'Movie', 'Rating', 'Timestamp']],
                 'Titles': movies}
-        with open(pickles_dir+str(min_positive_score)+'MovieLens1M.pickle', 'wb') as handle:
+        with open(pickles_dir+str(min_positive_score)+'MovieLens10M.pickle', 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
     return data

@@ -14,9 +14,7 @@ sys.path.append("/Users/salihgundogdu/Desktop/gits/multimodalrec/data/")
 from data import data_creation as dc
 
 
-def data_pipeline(training_df, user_latent_traninig, 
-                          visual_features, batch_size, ith_batch, epoch_num=None, random=False, validation=False):
-                               #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output):
+def data_pipeline(training_df, user_latent_traninig, visual_features, batch_size, ith_batch, epoch_num=None, random=False, validation=False): #ratings_df_test, user_latent_test, movie_factors_test, visual_features, output):
     
     if random:
         train = training_df.sample(n=batch_size+150, random_state=ith_batch+(epoch_num+10))#(frac=0.1,random_state=200)
@@ -62,8 +60,7 @@ def normalize_concat_inputs(user_latent, visual_features, data, batch_size):
     # print(len(y))
 
 
-def Model1(ratings_df_training, user_latent_traninig, movie_factors_training,
-           ratings_df_test, user_latent_test, movie_factors_test, visual_features, output): # Inputs are dictionary
+def Model1(ratings_df_training, user_latent_traninig, movie_factors_training, ratings_df_test, user_latent_test, movie_factors_test, visual_features, output): # Inputs are dictionary
 
     # TRAIN
     # Create X_train y_train (POSITIVE)
@@ -195,38 +192,47 @@ class MultimodalRec(object):
 
         # ADD Tensorflow Graph Naming
 
-    def organize_multimodal_data(self, load=False):
-        directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-1m/ratings.dat'
-        all_movies_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/all_movies.txt'
-        pickles_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/pickles/'
+    def organize_multimodal_data(self, load=False, dataset=1, trailer_directory='data/'):
 
-        data = dc.get_movielens_1M(directory=directory, all_movies_dir=all_movies_dir, pickles_dir=pickles_dir, min_positive_score=0)
+        if dataset==1:
+            directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-1m/ratings.dat'
+            all_movies_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/all_movies.txt'
+            pickles_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/pickles/'
+            data = dc.get_movielens_1M(directory=directory, all_movies_dir=all_movies_dir, pickles_dir=pickles_dir, min_positive_score=0)
+        elif dataset==10:
+            directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-1m/ratings.dat'
+            all_movies_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/all_movies.txt'
+            pickles_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/pickles/'
+            data1M = dc.get_movielens_1M(directory=directory, all_movies_dir=all_movies_dir, pickles_dir=pickles_dir, min_positive_score=0)
+            
+            directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-10m/ratings.dat'
+            data = dc.get_movielens_10M(directory=directory, all_movies_dir=all_movies_dir, pickles_dir=pickles_dir, min_positive_score=0)
+
+            # Applying same movies (no need to process all images again)
+            data['test'] = data['training'][data['training'].Movie.isin(data1M['test'].Movie.unique().tolist())]
+            data['training'] = data['training'][data['training'].Movie.isin(data1M['training'].Movie.unique().tolist())]
+            data['Titles'] = data1M['Titles']
+            print(data['training'].shape)
+        elif dataset==20:
+            pass
+        else:
+            raise ValueError('dataset selection is not valid! Use 1, 10 or 20 as int type')
 
         # Get Latent Factors Training
         print('Training User-Movie Latent Factors are extracting...')
+        print(data['training'].shape)
         self.user_item_network_training = CollaborativeFiltering(data['training']) # 0 Threshold trim
         user_latent_traninig, movie_latent_traninig, sigma = self.user_item_network_training.compute_latent_factors(algorithm='SVD', k=50)
         self.user_latent_traninig = user_latent_traninig
         self.movie_latent_traninig = movie_latent_traninig
         print('Done.')
 
-        # Get Latent Factors Test
-        #print('Test User-Movie Latent Factors are extracting...')
-        #self.user_item_network_test = CollaborativeFiltering(data['test']) # 0 Threshold trim
-        #user_latent_test, movie_latent_test, sigma = self.user_item_network_test.compute_latent_factors(algorithm='SVD', k=256)
-        #self.user_latent_test = user_latent_test
-        #self.movie_latent_test = movie_latent_test
-        #print('Done.')
-
         # Get Representations of Trailer Frames
         print('Visual Representations are extracting...')
         self.video_processor = AudioVisualEncoder()
-        sequences = self.video_processor.extract_visual_features(_dir_='data/',load=load)
+        sequences = self.video_processor.extract_visual_features(_dir_=trailer_directory,load=load)
         self.visual_features = sequences
         print('Done.')
-
-
-
 
         #yield (X, y)
 
