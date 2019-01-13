@@ -109,10 +109,12 @@ def extract_features(_dir_='',load=False, model_name='mobilenet'):
                 sequence.append(features)
 
             all_sequences[int(trailer_dir.rsplit('/')[-1])]=sequence#.append(sequence)
-            np.save(_dir_+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
+            # np.save(_dir_+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
+            np.save('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq', sequence)
             pbar.update(1)
         else:
-            sequence = np.load(_dir_+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
+            sequence = np.load('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
+            # sequence = np.load(_dir_+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
             all_sequences[int(trailer_dir.rsplit('/')[-1])]=sequence#.append(sequence)
             pbar.update(1)
     pbar.close()
