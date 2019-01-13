@@ -25,9 +25,9 @@ class AudioVisualEncoder(object):
 		return self.movie_aud_features
 
 
-	def extract_visual_features(self, _dir_='data/', load=False):
+	def extract_visual_features(self, _dir_='data/', load=False, seq_dir='data/'):
 		"""Generates representation vector per second"""
-		self.movie_vis_features = extract_features(_dir_=_dir_, load=load)#(Visual_data, extraction_type, pretrained_model)
+		self.movie_vis_features = extract_features(_dir_=_dir_, load=load, seq_dir=seq_dir)#(Visual_data, extraction_type, pretrained_model)
 		return self.movie_vis_features
 
 
