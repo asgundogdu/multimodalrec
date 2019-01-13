@@ -82,7 +82,7 @@ class ExtractorMobile():
         return features
 
 
-def extract_features(_dir_='',load=False, model_name='mobilenet', seq_dir=''):
+def extract_features(_dir_='',load=False, model_name='imagenet', seq_dir=''):
     seq_lenght = 30
     #train_dir = [_dir_+'train/'+f for f in os.listdir(_dir_+'train/') if f.find('.')==-1]
     #test_dir = [_dir_+'test/'+f for f in os.listdir(_dir_+'test/') if f.find('.')==-1]
