@@ -82,7 +82,7 @@ class ExtractorMobile():
         return features
 
 
-def extract_features(_dir_='',load=False, model_name='imagenet', seq_dir=''):
+def extract_Vfeatures(_dir_='',load=False, model_name='imagenet', seq_dir=''):
     seq_lenght = 30
     #train_dir = [_dir_+'train/'+f for f in os.listdir(_dir_+'train/') if f.find('.')==-1]
     #test_dir = [_dir_+'test/'+f for f in os.listdir(_dir_+'test/') if f.find('.')==-1]
@@ -94,11 +94,11 @@ def extract_features(_dir_='',load=False, model_name='imagenet', seq_dir=''):
     else:
         model = Extractor(load=load)
 
-    pbar = tqdm(total=len(all_data))
+    pbar = tqdm(total=len(all_data), position=0)
     all_sequences = {}
     for trailer_dir in all_data:
         # Get the path to the frames for this trailer
-        if not os.path.isfile(seq_dir+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy'):
+        if not os.path.isfile(seq_dir+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy') and not load:
 
             # Loop through and extract features to build the sequence.
             frames = [trailer_dir+'/'+f for f in os.listdir(trailer_dir) if bool(re.search("[0-9].jpg", f))]
@@ -114,8 +114,9 @@ def extract_features(_dir_='',load=False, model_name='imagenet', seq_dir=''):
             pbar.update(1)
         else:
             # sequence = np.load('sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
-            sequence = np.load(seq_dir+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
-            all_sequences[int(trailer_dir.rsplit('/')[-1])]=sequence#.append(sequence)
+            if os.path.isfile(seq_dir+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy'):
+                sequence = np.load(seq_dir+'sequences/'+trailer_dir.rsplit('/')[-1]+'.seq.npy')
+                all_sequences[int(trailer_dir.rsplit('/')[-1])]=sequence#.append(sequence)
             pbar.update(1)
     pbar.close()
 

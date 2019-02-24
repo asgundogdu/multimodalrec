@@ -1,6 +1,6 @@
 # from .video import VideoEncoder
-from .image import extract_features
-# from .audio import AudioEncoder
+from .image import extract_Vfeatures
+from .audio import extract_Afeatures
 
 
 # LSTM input generation
@@ -19,15 +19,15 @@ class AudioVisualEncoder(object):
 		self.movie_aud_features = None
 
 
-	def extract_audial_features(self):
+	def extract_audio_features(self, _dir_='/Volumes/TOSHIBA EXT/audio_samples10M', load=False):
 		"""Generates representation vector per second"""
-		self.movie_aud_features = AudioEncoder(Audial_data)
+		self.movie_aud_features = extract_Afeatures(_dir_=_dir_)
 		return self.movie_aud_features
 
 
 	def extract_visual_features(self, _dir_='data/', load=False, seq_dir='data/'):
 		"""Generates representation vector per second"""
-		self.movie_vis_features = extract_features(_dir_=_dir_, load=load, seq_dir=seq_dir)#(Visual_data, extraction_type, pretrained_model)
+		self.movie_vis_features = extract_Vfeatures(_dir_=_dir_, load=load, seq_dir=seq_dir)#(Visual_data, extraction_type, pretrained_model)
 		return self.movie_vis_features
 
 

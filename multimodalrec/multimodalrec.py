@@ -7,9 +7,11 @@ import pandas as pd
 from tqdm import tqdm
 
 # In-built packages
+from . import config
 from .trailer import AudioVisualEncoder
 from .viewership import BipartiteNetwork, CollaborativeFiltering
 from .lossTypes import RMSELossGraph
+from .model import RatingModel
 # from .basicGraph import BasicGraph
 sys.path.append("/Users/salihgundogdu/Desktop/gits/multimodalrec/data/")
 from data import data_creation as dc
@@ -146,19 +148,19 @@ def rating_model(data_source = "A+I", concat_type='Additive', conv_type='Both',b
             h = z * h + (1-z) * h_u
             # h = tf.nn.dropout(h, keep_prob=keep_prob_)
             print(h)
-            logits = tf.layers.dense(h, n_classes)
+            logits = tf.layers.dense(h, n_classes, name='logits')
             
             # Cost function and optimizer
-            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels_))
+            cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels_), name='cost')
 
             #cost = tf.reduce_mean(logits, labels_)
             optimizer = tf.train.AdamOptimizer(learning_rate_).minimize(cost)
 
             # Accuracy
 
-            predicted = tf.nn.sigmoid(logits)
+            predicted = tf.nn.sigmoid(logits, name='predicted')
             correct_pred = tf.equal(tf.round(predicted), labels_)
-            accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32))
+            accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32), name='accuracy')
             f1score = tf.contrib.metrics.f1_score(labels=labels_,predictions=predicted)
             # ROC Curve
             gt_ , pr_ = labels_, predicted
@@ -200,6 +202,7 @@ def rating_model(data_source = "A+I", concat_type='Additive', conv_type='Both',b
             concat_flat = flat_user#tf.concat([tf.linalg.l2_normalize(flat_image)], -1)
             
             initializer = tf.contrib.layers.xavier_initializer()
+            
             # Predictions
             logits = tf.layers.dense(concat_flat, n_classes, activation=None, kernel_initializer=initializer)
 
@@ -494,7 +497,6 @@ def genre_model_partial_conv(data_source = "A+I", concat_type='Additive', batch_
     return graph, inputs_image, inputs_audio, labels_, keep_prob_, learning_rate_, logits, cost, optimizer, correct_prediction, accuracy, all_labels_true, accuracy2, gt_ , pr_ 
 
 
-
 def genre_model_mean(data_source = "A+I", concat_type='Additive', batch_size = 100, seq_len = 60, learning_rate = 0.0005, epochs = 30, n_classes = 13, n_channels_audio = 100, n_channels_image = 2048):
     graph = tf.Graph()
 
@@ -596,7 +598,6 @@ def genre_model_mean(data_source = "A+I", concat_type='Additive', batch_size = 1
     return graph, inputs_image, inputs_audio, labels_, keep_prob_, learning_rate_, logits, cost, optimizer, correct_prediction, accuracy, all_labels_true, accuracy2, gt_ , pr_ 
 
 
-
 def audio_batch_generator(df, batchsize=32):
     movies = np.split(df, df.movie_id.nunique())
     for batch_i in range(len(movies)//batchsize):        
@@ -659,7 +660,6 @@ def vis_val_batch_generator(df, batchsize=1):
     return np.array(batch_x), np.array(batch_y)
 
 
-
 def batch_generator(df, audio_features, visual_features, user_latent_traninig, batchsize=32):
     for batch in np.array_split(df, batchsize): 
         batch_x_audio, batch_x_image, batch_x_user, batch_y = [], [], [], [] 
@@ -670,6 +670,7 @@ def batch_generator(df, audio_features, visual_features, user_latent_traninig, b
             batch_y.append(int(row['Rating']>3.5))
     
         yield np.array(batch_x_audio)/100., np.array(batch_x_image), np.array(batch_x_user), np.array(batch_y)
+
 
 def val_batch_generator(df, audio_features, visual_features, user_latent_traninig, batchsize=1):
     for batch in np.array_split(df, batchsize): 
@@ -683,6 +684,39 @@ def val_batch_generator(df, audio_features, visual_features, user_latent_tranini
         return np.array(batch_x_audio)/100., np.array(batch_x_image), np.array(batch_x_user), np.array(batch_y)
 
 
+def _check_restore_parameters(sess, saver):
+    """ Restore the previously trained parameters if there are any. """
+    ckpt = tf.train.get_checkpoint_state(os.path.dirname(config.CPT_PATH + '/checkpoint'))
+    if ckpt and ckpt.model_checkpoint_path:
+        print("Loading parameters for the RatingModel")
+        saver.restore(sess, ckpt.model_checkpoint_path)
+    else:
+        print("Initializing fresh parameters for the TranslationModel")
+
+
+def run_step(sess, model, image, audio, user, lables, forward_only=False):
+    """ Run one step in training.
+    @forward_only: boolean value to decide whether a backward path should be created
+    forward_only is set to True when you just want to evaluate on the test set,
+    or when you want to the bot to be in translation mode. """
+
+    if not forward_only:
+        # Feed dictionary
+        feed = {inputs_image : image, inputs_audio : audio, inputs_user : user, 
+                labels_ : y, keep_prob_ : 0.5, learning_rate_ : learning_rate}
+        
+        # Loss
+        loss, _ , acc = sess.run([cost, optimizer, accuracy], feed_dict = feed)
+
+    else:
+        # Feed dictionary
+        feed = {inputs_image : image, inputs_audio : audio, inputs_user : user, 
+                labels_ : y, keep_prob_ : 1.}
+        
+        # Loss
+        loss, _ , acc = sess.run([cost, optimizer, accuracy], feed_dict = feed)
+
+
 class MultimodalRec(object):
     """DocString"""
     def __init__(self,
@@ -693,9 +727,7 @@ class MultimodalRec(object):
                 n_audial=128, # Dimension of the Visual Representation Vector (INT)
                 video_processor=None,#AudioVisualEncoder(), # Encoder to Extract AudioVisual Representations of Given Movie Trailers (OBJ)
                 system='SVM' # 'Basic' To compare different architectures
-
                 #user_item_network=BipartiteNetwork(), # U-I Adjacency Graph to compute User and Item Representation (OBJ)
-
                 ):
 
         # ADD check version
@@ -973,11 +1005,16 @@ class MultimodalRec(object):
         self.df_image_test = df_image_test
 
 
-    def eval_genre_classification(self, data_source = "A+I", batch_size = 100, learning_rate = 0.0005, epochs = 30, save_dir = "./model/audio/"):
+    def eval_rating_prediction(self, train=None, val=None, test=None, data_source="A+I", concat_type='Additive', conv_type='Both', batch_size = 64, seq_len = 60, max_iter=4000, learning_rate = 0.00008, epochs = 1, n_channels_user = 100, n_classes = 1, n_channels_audio = 100, n_channels_image = 2048, save_dir = "./model/rating/"):
         graph, inputs_image, inputs_audio, labels_, keep_prob_, \
         learning_rate_, logits, cost, optimizer, correct_prediction, \
         accuracy, all_labels_true, accuracy2, gt_ , pr_ = genre_model(data_source = data_source, batch_size = batch_size, 
                                                                       learning_rate = learning_rate, epochs = epochs)
+        sess=tf.Session()    
+        #First let's load meta graph and restore weights
+        saver = tf.train.import_meta_graph('my_test_model-1000.meta')
+        saver.restore(sess,tf.train.latest_checkpoint('./'))
+
 
         # with graph.as_default():
             
@@ -1205,10 +1242,226 @@ class MultimodalRec(object):
         return validation_gt, validation_pr, validation_acc, validation_acc2, validation_loss, train_acc, train_loss, train_acc2, test_gt, test_pr, test_acc, test_acc2, test_loss
 
 
+    def make_prediction(self,test=None, data_source="A+I", concat_type='Additive', conv_type='Both', batch_size = 64, seq_len = 60, max_iter=4000, learning_rate = 0.00008, epochs = 1, n_channels_user = 100, n_classes = 1, n_channels_audio = 100, n_channels_image = 2048, save_dir = "./model/rating/"):
+        model = RatingModel(data_source = data_source, concat_type=concat_type, conv_type=conv_type,batch_size = batch_size, seq_len = seq_len, learning_rate = learning_rate, epochs = epochs, n_channels_user = n_channels_user,n_classes = n_classes, n_channels_audio = n_channels_audio, n_channels_image = n_channels_image)
+        model.build_graph()
+
+        test_acc = []
+        test_loss = []
+
+        test_gt = []
+        test_pr = []
+        
+        saver = tf.train.Saver()
+
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            # sess.run(tf.local_variables_initializer())
+            _check_restore_parameters(sess, saver)    
+
+            # TEST SET
+            test_acc_ = []
+            test_loss_ = []
+            test_batch_gt = np.empty((0,1), float)
+            test_batch_score = np.empty((0,1), float)
+            for audio_test, image_test, user_test, y_test_ in batch_generator(test, self.df_audio_test, self.df_image_test, self.user_latent_traninig, batchsize=test.shape[0]//batch_size):
+                # Feed
+                y_test = np.expand_dims(y_test_, 1)
+                feed = {model.inputs_image : image_test, model.inputs_audio : audio_test, model.inputs_user : user_test, 
+                        model.labels_ : y_test, model.keep_prob_ : 1.0}  
+
+                # Loss
+                loss_t, acc_t, logs_t, labs_t, _gt_t, _pr_t = sess.run([model.cost, 
+                                                                        model.accuracy,
+                                                                        model.logits,
+                                                                        model.labels_,
+                                                                        model.gt_, 
+                                                                        model.pr_], feed_dict = feed)                    
+                test_acc_.append(acc_t)
+                test_loss_.append(loss_t)
+
+                test_batch_gt = np.append(test_batch_gt, _gt_t, axis=0)
+                test_batch_score = np.append(test_batch_score, _pr_t, axis=0)
+                
+            # Store test
+            test_acc.append(np.mean(test_acc_))
+            test_loss.append(np.mean(test_loss_))
+            
+            test_gt.append(test_batch_gt)
+            test_pr.append(test_batch_score)
+
+        sess.close()
+
+        return test_gt, test_pr, test_acc, test_loss
+
+
+    def train_rating_model(self, train=None, val=None, test=None, data_source="A+I", concat_type='Additive', conv_type='Both', batch_size = 64, seq_len = 60, max_iter=4000, learning_rate = 0.00008, epochs = 1, n_channels_user = 100, n_classes = 1, n_channels_audio = 100, n_channels_image = 2048, save_dir = "./model/rating/"):
+
+        model = RatingModel(data_source = data_source, concat_type=concat_type, conv_type=conv_type,batch_size = batch_size, seq_len = seq_len, learning_rate = learning_rate, epochs = epochs, n_channels_user = n_channels_user,n_classes = n_classes, n_channels_audio = n_channels_audio, n_channels_image = n_channels_image)
+        model.build_graph()
+
+        validation_gt = []
+        validation_pr = []
+
+        validation_acc = []
+        validation_loss = []
+
+        test_gt = []
+        test_pr = []
+
+        test_acc = []
+        test_loss = []
+
+        # train_auc = []
+        train_acc = []
+        train_loss = []
+
+        print('Train, Validation, Test shapes:', train.shape,val.shape,test.shape) 
+
+        validation_acc = []
+        validation_loss = []
+        validation_f1 = []
+
+        train_acc = []
+        train_loss = []
+
+        saver = tf.train.Saver()
+
+        with tf.Session() as sess:
+            print('Running session')
+            sess.run(tf.global_variables_initializer())
+            sess.run(tf.local_variables_initializer())
+            #_check_restore_parameters(sess, saver)
+
+            iteration = 1
+            val_iteration = 0
+            global_loss = 100
+            # Loop over epochs
+            for e in range(epochs):
+                # Loop over batches
+                for audio, image, user, y in batch_generator(train, self.df_audio, self.df_image, self.user_latent_traninig, batchsize=train.shape[0]//batch_size):
+                    # assert np.mean(y_aud) == np.mean(y_vis)
+                    
+                    y = np.expand_dims(y, 1)
+                    
+                    # Feed dictionary
+                    feed = {model.inputs_image : image, model.inputs_audio : audio, model.inputs_user : user, 
+                            model.labels_ : y, model.keep_prob_ : 0.5, model.learning_rate_ : learning_rate}
+                    
+                    # Loss
+                    loss, _ , acc = sess.run([model.cost, model.optimizer, model.accuracy], feed_dict = feed)
+                    train_acc.append(acc)
+                    train_loss.append(loss)
+                    
+                    # Print at each 40 iters
+                    if (iteration % 20 == 0):
+                        print("Epoch: {}/{}".format(e, epochs),
+                              "Iteration: {:d}".format(iteration),
+                              "Train loss: {:6f}".format(loss),
+                              "Train acc: {:.6f}".format(acc))
+                        
+                    # Compute validation loss at every 10 iterations
+                    if (iteration%100 == 0) or (iteration == 1): 
+                        # VALIDATION SET
+                        val_acc_ = []
+                        val_loss_ = []
+                        val_f1_ = []
+                        
+                        val_batch_gt = np.empty((0,1), float)
+                        val_batch_score = np.empty((0,1), float)
+                        
+                        for audio_val, image_val, user_val, y_val_ in batch_generator(val, self.df_audio_val, self.df_image_val, self.user_latent_traninig, batchsize=val.shape[0]//batch_size):
+                            # Feed
+                            y_val = np.expand_dims(y_val_, 1)
+                            feed = {model.inputs_image : image_val, model.inputs_audio : audio_val, model.inputs_user : user_val, 
+                                    model.labels_ : y_val, model.keep_prob_ : 1.0}  
+
+                            # Loss
+                            loss_v, acc_v, logs, labs, _gt_, _pr_, _f1_ = sess.run([model.cost, 
+                                                                                    model.accuracy,
+                                                                                    model.logits,
+                                                                                    model.labels_,
+                                                                                    model.gt_, 
+                                                                                    model.pr_, 
+                                                                                    model.f1score], feed_dict = feed)                    
+                            val_acc_.append(acc_v)
+                            val_loss_.append(loss_v)
+                            val_f1_.append(_f1_[0])
+
+                            val_batch_gt = np.append(val_batch_gt, _gt_, axis=0)
+                            val_batch_score = np.append(val_batch_score, _pr_, axis=0)
+                            
+                            # Print info
+                        print("Epoch: {}/{}".format(e, epochs),
+                              "Iteration: {:d}".format(iteration),
+                              "Validation loss: {:6f}".format(np.mean(val_loss_)),
+                              "Validation acc: {:.6f}".format(np.mean(val_acc_)),
+                              "Validation F1 score: {:.6f}".format(np.mean(val_f1_[0])))
+                        
+                        if iteration>=100:
+                            if iteration<= 100:
+                                global_loss = validation_loss[val_iteration-1]
+                            if global_loss > np.mean(val_loss_):
+                                # saver.save(sess, save_path=save_dir, global_step=iteration)
+                                mes = "This iteration receive better loss: {:.3f} < {:.3f}. Saving session..."
+                                saver.save(sess, os.path.join(config.CPT_PATH, 'RatingModel'), global_step=iteration)
+                                print(mes.format(np.mean(val_loss_), global_loss))
+                                global_loss = np.mean(val_loss_)
+                        
+                        # Store
+                        validation_acc.append(np.mean(val_acc_))
+                        validation_loss.append(np.mean(val_loss_))
+                        validation_f1.append(np.mean(val_f1_))
+                        
+                        validation_gt.append(val_batch_gt)
+                        validation_pr.append(val_batch_score)
+                        
+                        
+                        # TEST SET
+                        test_acc_ = []
+                        test_loss_ = []
+                        test_batch_gt = np.empty((0,1), float)
+                        test_batch_score = np.empty((0,1), float)
+                        for audio_test, image_test, user_test, y_test_ in batch_generator(test, self.df_audio_test, self.df_image_test, self.user_latent_traninig, batchsize=test.shape[0]//batch_size):
+                            # Feed
+                            y_test = np.expand_dims(y_test_, 1)
+                            feed = {model.inputs_image : image_test, model.inputs_audio : audio_test, model.inputs_user : user_test, 
+                                    model.labels_ : y_test, model.keep_prob_ : 1.0}  
+
+                            # Loss
+                            loss_t, acc_t, logs_t, labs_t, _gt_t, _pr_t = sess.run([model.cost, 
+                                                                                    model.accuracy,
+                                                                                    model.logits,
+                                                                                    model.labels_,
+                                                                                    model.gt_, 
+                                                                                    model.pr_], feed_dict = feed)                    
+                            test_acc_.append(acc_t)
+                            test_loss_.append(loss_t)
+
+                            test_batch_gt = np.append(test_batch_gt, _gt_t, axis=0)
+                            test_batch_score = np.append(test_batch_score, _pr_t, axis=0)
+
+                            # break
+                            
+                        # Store test
+                        test_acc.append(np.mean(test_acc_))
+                        test_loss.append(np.mean(test_loss_))
+                        
+                        test_gt.append(test_batch_gt)
+                        test_pr.append(test_batch_score)
+
+                    
+                    # Iterate 
+                    iteration += 1
+                    if iteration >= max_iter: break
+
+        return validation_gt, validation_pr, validation_acc, validation_loss, train_acc, train_loss, test_gt, test_pr, test_acc, test_loss
+
+
     def train_rating_prediction(self, train=None, val=None, test=None, data_source="A+I", concat_type='Additive', conv_type='Both',
                 batch_size = 64, seq_len = 60, max_iter=4000,
                 learning_rate = 0.00008, epochs = 1, n_channels_user = 100,
-                n_classes = 1, n_channels_audio = 100, n_channels_image = 2048):
+                n_classes = 1, n_channels_audio = 100, n_channels_image = 2048, save_dir = "./model/rating/"):
 
         graph, inputs_image, inputs_audio, inputs_user, labels_, keep_prob_, learning_rate_, \
         logits, cost, optimizer, correct_pred, accuracy, f1score, gt_ , pr_ = rating_model(data_source = data_source, concat_type=concat_type, 
@@ -1233,10 +1486,11 @@ class MultimodalRec(object):
         train_acc = []
         train_loss = []
 
+        # Model saver
         with graph.as_default():
             saver = tf.train.Saver()
 
-        print('Train, Validation, Test shapes:', train.shape,val.shape,test.shape) # (1254251, 4) (43867, 4) (15798, 4) year_start=2001
+        print('Train, Validation, Test shapes:', train.shape,val.shape,test.shape) 
 
         validation_acc = []
         validation_loss = []
@@ -1316,6 +1570,7 @@ class MultimodalRec(object):
                             if global_loss > np.mean(val_loss_):
                                 # saver.save(sess, save_path=save_dir, global_step=iteration)
                                 mes = "This iteration receive better loss: {:.3f} < {:.3f}. Saving session..."
+                                saver.save(sess, save_dir,global_step=iteration)
                                 print(mes.format(np.mean(val_loss_), global_loss))
                                 global_loss = np.mean(val_loss_)
                         
@@ -1362,157 +1617,7 @@ class MultimodalRec(object):
         return validation_gt, validation_pr, validation_acc, validation_loss, train_acc, train_loss, test_gt, test_pr, test_acc, test_loss
 
 
-    def assign_all_zero_genre_classification(self, data_source = "Zero", batch_size = 100, learning_rate = 0.0005, 
-                                             epochs = 30, save_dir = "./model/audio/"):
-
-        
-        # Creating Static Validation Set
-        x_v_aud, y_v_aud = audio_val_batch_generator(self.df_audio_val, batchsize=1)
-        x_v_vis, y_v_vis = vis_val_batch_generator(self.df_image_val, batchsize=1)
-        y_v = y_v_vis
-        # print(x_v_aud.shape)
-        # print(x_v_aud[0,:])
-        # print(x_v_aud[-1,:])
-        # print()
-        
-        # Creating Static Test Set
-        x_t_aud, y_t_aud = audio_val_batch_generator(self.df_audio_test, batchsize=1)
-        x_t_vis, y_t_vis = vis_val_batch_generator(self.df_image_test, batchsize=1)
-        y_t = y_t_vis
-        # print(x_t_aud.shape)
-        # print(x_t_aud[0,:])
-        # print(x_t_aud[-1,:])
-        # print()
-
-        x_, y_ = audio_batch_generator(self.df_audio, batch_size=1)
-
-        y_pred
-
-        print('Training is starting...')
-
-        with tf.Session(graph=graph) as sess:
-            sess.run(tf.global_variables_initializer())
-            iteration = 1
-            val_iteration = 0
-            global_loss = 100
-            # Loop over epochs
-            for e in range(epochs):
-                # Loop over batches
-                for (x_aud,y_aud), (x_vis, y_vis) in zip(audio_batch_generator(self.df_audio, batch_size=1), vis_batch_generator(self.df_image, batch_size)):
-                    assert np.mean(y_aud) == np.mean(y_vis)
-                    y = y_vis
-                    
-                    # Feed dictionary
-                    feed = {inputs_image : x_vis, inputs_audio : x_aud, 
-                            labels_ : y, keep_prob_ : 0.3, learning_rate_ : learning_rate}
-                    
-                    # Loss
-                    loss, _ , acc, acc2 = sess.run([cost, optimizer, accuracy, accuracy2], feed_dict = feed)
-                    train_acc.append(acc)
-                    train_acc2.append(acc2)
-                    train_loss.append(loss)
-                    
-                    # Print at each 5 iters
-                    if (iteration % 40 == 0):
-                        print("Epoch: {}/{}".format(e, epochs),
-                              "Iteration: {:d}".format(iteration),
-                              "Train loss: {:6f}".format(loss),
-                              "Train acc: {:.6f}".format(acc))
-                        
-                    # Compute validation loss at every 20 iterations
-                    if (iteration%20 == 0):                
-                        val_acc_ = []
-                        val_acc2_ =[]
-                        val_loss_ = []
-
-                        tst_acc_ = []
-                        tst_acc2_ =[]
-                        tst_loss_ = []
-                        
-                        val_batch_gt = np.empty((0,13), float)
-                        val_batch_score = np.empty((0,13), float)
-
-                        tst_batch_gt = np.empty((0,13), float)
-                        tst_batch_score = np.empty((0,13), float)
-                        
-                        # x_v_aud, y_v_aud = audio_val_batch_generator(self.df_audio_test, batchsize=1)
-                        # x_v_vis, y_v_vis = vis_val_batch_generator(self.df_image_test, batchsize=1)
-                        # y_v = y_v_vis
-
-                        # Feed
-                        feed = {inputs_image: x_v_vis, inputs_audio : x_v_aud,  
-                                labels_ : y_v, keep_prob_ : 1.0}  
-
-                        # Loss
-                        loss_v, acc_v, y_gt_v, y_score_v, acc_2 = sess.run([cost, accuracy, gt_, pr_, accuracy2], feed_dict = feed)           
-                        val_acc_.append(acc_v)
-                        val_acc2_.append(acc_2)
-                        val_loss_.append(loss_v)
-                        
-                        val_batch_gt = np.append(val_batch_gt, y_gt_v, axis=0)
-                        val_batch_score = np.append(val_batch_score, y_score_v, axis=0)
-                        
-                        if (iteration%40 == 0):       
-                            # Print info
-                            print("Epoch: {}/{}".format(e, epochs),
-                                  "Iteration: {:d}".format(iteration),
-                                  "Validation loss: {:6f}".format(np.mean(val_loss_)),
-                                  "Validation acc: {:.6f}".format(np.mean(val_acc_)))
-
-                        if iteration>=40:
-                            # print("Validation loss",val_loss_)
-                            # print("Validation loss len",len(validation_loss))
-                            if iteration<= 40:
-                                global_loss = validation_loss[val_iteration-1]
-                            if global_loss > np.mean(val_loss_):
-                                saver.save(sess, save_path=save_dir, global_step=iteration)
-                                mes = "This iteration receive better loss: {:.2f} < {:.2f}. Saving session..."
-                                print(mes.format(np.mean(val_loss_), global_loss))
-                                global_loss = np.mean(val_loss_)
-                        # Store
-                        validation_acc.append(np.mean(val_acc_))
-                        validation_acc2.append(np.mean(val_acc2_))
-                        validation_loss.append(np.mean(val_loss_))
-                        
-                        validation_gt.append(val_batch_gt)
-                        validation_pr.append(val_batch_score)
-
-                        val_iteration += 1
-
-                        # x_t_aud, y_t_aud = audio_val_batch_generator(self.df_audio_test, batchsize=1, validation=False)
-                        # x_t_vis, y_t_vis = vis_val_batch_generator(self.df_image_test, batchsize=1, validation=False)
-                        # y_t = y_t_vis
-
-                        # Feed
-                        feed = {inputs_image: x_t_vis, inputs_audio : x_t_aud,  
-                                labels_ : y_t, keep_prob_ : 1.0}  
-
-                        # Loss
-                        loss_t, acc_t, y_gt_t, y_score_t, acc_2_t = sess.run([cost, accuracy, gt_, pr_, accuracy2], feed_dict = feed)           
-                        tst_acc_.append(acc_t)
-                        tst_acc2_.append(acc_2_t)
-                        tst_loss_.append(loss_t)
-                        
-                        tst_batch_gt = np.append(tst_batch_gt, y_gt_t, axis=0)
-                        tst_batch_score = np.append(tst_batch_score, y_score_t, axis=0)
-                        
-                        # Store
-                        test_acc.append(np.mean(tst_acc_))
-                        test_acc2.append(np.mean(tst_acc2_))
-                        test_loss.append(np.mean(tst_loss_))
-                        
-                        test_gt.append(tst_batch_gt)
-                        test_pr.append(tst_batch_score)
-                    
-                    # Iterate 
-                    iteration += 1
-
-
-        return validation_gt, validation_pr, validation_acc, validation_acc2, validation_loss, train_acc, train_loss, train_acc2, test_gt, test_pr, test_acc, test_acc2, test_loss
-
-
-    def get_trailer_features(self, load=False, dataset=1, trailer_directory='data/', 
-                           sequence_dir='data/', audio_directory='/Volumes/TOSHIBA EXT/audio_samples10M', no_audio=False, year_start=2000):
+    def get_trailer_features(self, load=False, dataset=1, trailer_directory='data/', sequence_dir='data/', audio_directory='/Volumes/TOSHIBA EXT/audio_samples10M', no_audio=False, year_start=2000):
         if dataset==1:
             directory = os.path.dirname(os.path.realpath("__file__"))+'/data/ml-1m/ratings.dat'
             all_movies_dir = os.path.dirname(os.path.realpath("__file__"))+'/data/all_movies.txt'
@@ -1823,132 +1928,3 @@ class MultimodalRec(object):
     #         SVM_model(self.user_factors, self.movie_factors, self.trailer_sequence_representation, self.output)
 
 ##################################################
-
-# AUDIO+IMAGE+CONCAT_withoutnormalization
-# cv1 = {'Mean Accuracy': 0.88258743,
-#  'Std Accuracy': 0.0016023071,
-#  'All Label True Mean Accuracy': 0.22681819,
-#  'All Label True Std Accuracy': 0.016879492,
-#  'Mean ROC Curve Area': 0.862391437501645,
-#  'Std ROC Curve Area': 0.0034494904499349725}
-
-# roc_mean = {'Thriller': 0.8156934893199929,
-#  'War': 0.8633896151080437,
-#  'Adventure': 0.8173073421040541,
-#  'Comedy': 0.8276088691873474,
-#  'Children': 0.8720645717509606,
-#  'Crime': 0.7795350619099958,
-#  'Mystery': 0.6903384404313739,
-#  'Romance': 0.7109978548460507,
-#  'Action': 0.8146620601146088,
-#  'Drama': 0.7466068367320481,
-#  'Sci-Fi': 0.8161211442633969,
-#  'Horror': 0.8593519730960097,
-#  'Fantasy': 0.780166976429598}
-
-# roc_std = {'Thriller': 0.01604867402131482,
-#  'War': 0.0430477570656686,
-#  'Adventure': 0.016611087103345735,
-#  'Comedy': 0.009474727435399071,
-#  'Children': 0.02394516441156878,
-#  'Crime': 0.03309559096842231,
-#  'Mystery': 0.03133838914817679,
-#  'Romance': 0.034333799149719214,
-#  'Action': 0.010253728203237502,
-#  'Drama': 0.023189904250268237,
-#  'Sci-Fi': 0.02360037819732559,
-#  'Horror': 0.018400924247650094,
-#  'Fantasy': 0.018587423282192334}
-
-##################################################
-
-# AUDIO+IMAGE+CONCAT_withnormalization
-# cv2 = {'Mean Accuracy': 0.8566434,
-#  'Std Accuracy': 0.0034894967,
-#  'All Label True Mean Accuracy': 0.096363634,
-#  'All Label True Std Accuracy': 0.011991735,
-#  'Mean ROC Curve Area': 0.7848487392384401,
-#  'Std ROC Curve Area': 0.004866283456038735}
-
-
-# roc_mean = {'War': 0.5951429985298528,
-#  'Fantasy': 0.6787317400015357,
-#  'Romance': 0.4742464458769121,
-#  'Mystery': 0.5563404146014822,
-#  'Horror': 0.693803708787126,
-#  'Children': 0.6341641571044534,
-#  'Action': 0.7391052577281614,
-#  'Crime': 0.5906080414466668,
-#  'Sci-Fi': 0.735991042045341,
-#  'Adventure': 0.6920414441395178,
-#  'Drama': 0.5799510287009394,
-#  'Comedy': 0.6744497362103676,
-#  'Thriller': 0.6659738287682632}
-
-#  roc_std = {'War': 0.028810147523957715,
-#  'Fantasy': 0.05464351945389523,
-#  'Romance': 0.07534565126876623,
-#  'Mystery': 0.03738068429046518,
-#  'Horror': 0.03455952389244684,
-#  'Children': 0.071791594659351,
-#  'Action': 0.012607604592011512,
-#  'Crime': 0.023704530532506055,
-#  'Sci-Fi': 0.0426345485927024,
-#  'Adventure': 0.03638958080482277,
-#  'Drama': 0.018493468604396816,
-#  'Comedy': 0.02717203946809617,
-#  'Thriller': 0.01999308823126566}
-
-##################################################
-
-# AUDIO_withoutnormalization
-# cv3 = {'Mean Accuracy': 0.8567832,
-#  'Std Accuracy': 0.0033023034,
-#  'All Label True Mean Accuracy': 0.08227273,
-#  'All Label True Std Accuracy': 0.013071641,
-#  'Mean ROC Curve Area': 0.7609355525403347,
-#  'Std ROC Curve Area': 0.009278733417821662}
-
-# roc_mean = {'Action': 0.6694844396188158, 'Fantasy': 0.5775772486529052, 'Romance': 0.5227811804757734, 'Horror': 0.6240906636018682, 'Thriller': 0.6541275608905741, 'Comedy': 0.5382046286691778, 'Children': 0.5228208500692837, 'Mystery': 0.5177230123788217, 'Drama': 0.540891681285367, 'War': 0.4623496742072508, 'Adventure': 0.5846145449709206, 'Crime': 0.5815347800897243, 'Sci-Fi': 0.5735259438019917}
-# roc_std = {'Action': 0.028077001970071715, 'Fantasy': 0.02366575370394965, 'Romance': 0.06232828383984626, 'Horror': 0.024052757248398487, 'Thriller': 0.021193247205747646, 'Comedy': 0.014297660203609517, 'Children': 0.009776906994166093, 'Mystery': 0.07111250002266244, 'Drama': 0.013729560496941988, 'War': 0.04274177042156962, 'Adventure': 0.05372238549279903, 'Crime': 0.015412961878973272, 'Sci-Fi': 0.03914911997929026}
-
-##################################################
-
-# IMAGE_withoutnormalization
-# cv4 = {'Mean Accuracy': 0.88076925,
- # 'Std Accuracy': 0.0020086048,
- # 'All Label True Mean Accuracy': 0.22772726,
- # 'All Label True Std Accuracy': 0.0067266584,
- # 'Mean ROC Curve Area': 0.863467688070319,
- # 'Std ROC Curve Area': 0.00445024455445815} 
-
-# roc_mean = {'Action': 0.8186787694120361, 'Fantasy': 0.7812694456650925, 'Romance': 0.7152244390195999, 'Horror': 0.8710621326606052, 'Thriller': 0.8157369507111327, 'Comedy': 0.8227397965386529, 'Children': 0.8709111170846265, 'Mystery': 0.6897914549958738, 'Drama': 0.7453202101013374, 'War': 0.8731432037001629, 'Adventure': 0.822235750132432, 'Crime': 0.7831921200099816, 'Sci-Fi': 0.8172443102732905}
-# roc_std = {'Action': 0.013628864969374488, 'Fantasy': 0.01725093295806066, 'Romance': 0.02898298004485256, 'Horror': 0.01594754569510265, 'Thriller': 0.01813498320203215, 'Comedy': 0.009169188635807264, 'Children': 0.03238073792084603, 'Mystery': 0.06501560396884323, 'Drama': 0.01809750534602589, 'War': 0.027527814137953497, 'Adventure': 0.006820565624929191, 'Crime': 0.017863903921767423, 'Sci-Fi': 0.013899393439803683}
-
-##################################################
-
-# AUDIO_withoutnormalization LONGER CONV
-# cv5 = {'Mean Accuracy': 0.8615385,
- # 'Std Accuracy': 0.0035835353,
- # 'All Label True Mean Accuracy': 0.15318182,
- # 'All Label True Std Accuracy': 0.007201352,
- # 'Mean ROC Curve Area': 0.7743230292087707,
- # 'Std ROC Curve Area': 0.00953435853380593}
-
-# roc_mean = {'Drama': 0.6129476460780375, 'Horror': 0.6784597076792401, 'Mystery': 0.5639306785509051, 'Children': 0.6521179088147059, 'Fantasy': 0.5898192253433255, 'Comedy': 0.6636830328495718, 'Action': 0.7180541774064807, 'Thriller': 0.6828717631656498, 'Crime': 0.5976217114954131, 'Sci-Fi': 0.590155819375545, 'Adventure': 0.6054525861319306, 'Romance': 0.616806739567232, 'War': 0.559683351508582}
-# roc_std = {'Drama': 0.01301236608540371, 'Horror': 0.025506827625963065, 'Mystery': 0.053087970142405655, 'Children': 0.006250805404489619, 'Fantasy': 0.03177819307168222, 'Comedy': 0.009064936015943286, 'Action': 0.016495462657135796, 'Thriller': 0.009675954620205698, 'Crime': 0.0016221588732230024, 'Sci-Fi': 0.0136313151627276, 'Adventure': 0.03781460632649885, 'Romance': 0.02297890752361728, 'War': 0.036800741977944904}
-
-##################################################
-
-# AUDIO+IMAGE_withoutnormalization LONGER CONV
-# cv6 = {'Mean Accuracy': 0.88160837,
- # 'Std Accuracy': 0.0022257015,
- # 'All Label True Mean Accuracy': 0.22409092,
- # 'All Label True Std Accuracy': 0.015870083,
- # 'Mean ROC Curve Area': 0.8624268278297264,
- # 'Std ROC Curve Area': 0.004983447945534734}
-
-# roc_mean = {'Drama': 0.7456476796368346, 'Horror': 0.8774635549287043, 'Mystery': 0.6918174062761011, 'Children': 0.8590721837246669, 'Fantasy': 0.778587563066819, 'Comedy': 0.8310348068255777, 'Action': 0.8251764728296171, 'Thriller': 0.8142653907251465, 'Crime': 0.7715858396469976, 'Sci-Fi': 0.8155725698727301, 'Adventure': 0.8133753780442903, 'Romance': 0.7215352675193157, 'War': 0.8503230254880946}
-# roc_std = {'Drama': 0.024634634393965862, 'Horror': 0.003932585807469424, 'Mystery': 0.057189601936124206, 'Children': 0.03600999678900703, 'Fantasy': 0.009094792921466675, 'Comedy': 0.011172122726914775, 'Action': 0.006282805856931287, 'Thriller': 0.0057506587365138435, 'Crime': 0.020817788853193894, 'Sci-Fi': 0.02295664518572803, 'Adventure': 0.012141137045283289, 'Romance': 0.02197698316702992, 'War': 0.050432714802689335}
-
-
