@@ -66,12 +66,12 @@ Confusion matrix:
 
 |               | Recommended                | Not recommended |
 | ------------- | -------------------------- | --------------- |
-| Preferred     | TP                         | FP              |
-| Not preffered | FN                         | TN              |
+| Preferred     | TP                         | FN              |
+| Not preffered | FP                         | TN              |
 
 Precision: what proportion of their recommendations were actually suitable for the user.
 
-False negative rate mat not be as relevant.
+False postive rate mat not be as relevant.
 
 ROC Curves
 
