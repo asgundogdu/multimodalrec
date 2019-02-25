@@ -71,7 +71,7 @@ Confusion matrix:
 
 Precision: what proportion of their recommendations were actually suitable for the user.
 
-False postive rate mat not be as relevant.
+Recall may not be as relevant.
 
 ROC Curves
 
