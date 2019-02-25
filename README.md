@@ -88,6 +88,15 @@ How data is splitted, which measurement should be taken, how to determine if dif
 CF modelling - no metadata used "Users who prefered this item also prefer this"
 Content-based modelling - learning set of item features through metadata "Similar Items" (Can build baseline model with movie genres, movie plots, etc.)
 
+### CF vs MultimodalRec
+
+To evaluate MultimodalRec with CF model, we aim to create a common test set where we do not target the movie cold-start problem. (CF models unable to work effectively for cold-start problems)
+
+Each user and movie in the test set will be exist in the training set where we seperately train CF and MultimodalRec models. Intuitively, CF uses user and movie latent factors and makes inference with matrix multiplication, whereas MultimodalRec uses user latent factors and trailer features (visual and audio) and make inference through our developed framework.
+
+### Content-based vs MultimodalRec
+
+For this task we focus on movie cold-start problem where the test set does not include any movies exist in the training set and compare both performances.
 
 
 
