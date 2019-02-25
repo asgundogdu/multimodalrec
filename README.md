@@ -13,7 +13,7 @@ For detail info and its usage, please see the [cyclopedia.](https://github.com/a
 
 ### The dimensions of data 
 
-#### 1-Dimensional Convolutions
+#### 1-dimensional Convolutions
 
 Frame representations are input into neural networks a 2048 lenght vector. This vector is encoded in such a way as to capture some aspect of the sentiment of the frame. So, each frame input into the CNN below will be a 2048 lenght vector. Afterwards, as we will be inputting a sequence of frames into network, for each input row we will be inputting 60 of these frame vectors. So the input for each row will be (60, 2048) in size. Eventually, with Tensorflow, we can process batches of data using multidimensional tensors. If we have a batch size of 64, out *training* input data for visual modality input will be (64 x 60 x 2048), where the batch size is the first dim of the tensor. 
 
