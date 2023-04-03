@@ -1,5 +1,5 @@
 # MultimodalRec
-Deep Multi-Modal Movie Trailer Recommendation System built in Python (--still in development--)
+Deep Multi-Modal Movie Trailer Recommendation System built in Python
 
 ## What does MultimodalRec do?
 
